@@ -1,44 +1,88 @@
 import streamlit as st
 import tensorflow as tf
-from PIL import Image
 import numpy as np
-import cv2
+from PIL import Image
 
-# Load your trained model
+# Load the trained model
 model = tf.keras.models.load_model('model.h5')
 
-# Function to preprocess the image
-def preprocess_image(image):
-    img = image.resize((128, 128))  # Resize to match the model input
-    img_array = np.array(img)  # Convert the image to a numpy array
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    img_array = tf.keras.utils.normalize(img_array, axis=1)  # Normalize the image
-    return img_array
+# Define the prediction function
+def make_prediction(img, model):
+    img = img.resize((128, 128))  # Resize image to model input size
+    img = np.array(img)  # Convert image to NumPy array
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    img = img / 255.0  # Normalize pixel values
+    res = model.predict(img)  # Get the model's prediction
+    return res[0][0]  # Return probability for class
 
-# Function to make predictions
-def make_prediction(image, model):
-    processed_image = preprocess_image(image)
-    prediction = model.predict(processed_image)
-    if prediction > 0.5:
-        return "Tumor Detected"
-    else:
-        return "No Tumor Detected"
+# Set page configuration for better UI
+st.set_page_config(page_title="Tumor Classification", page_icon="🧠", layout="centered")
 
-# Streamlit app layout
-st.title("Brain Tumor Detection from MRI Scans")
+# Add custom CSS to style the UI
+st.markdown("""
+    <style>
+        body {
+            background-color: #f0f2f6;
+        }
+        .stApp {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #1f77b4;
+        }
+        h2 {
+            text-align: center;
+            color: #ff7f0e;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f2f6;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
-# File uploader for image browsing
-uploaded_file = st.file_uploader("Choose an MRI Image...", type=["jpg","jpeg","png"])
+# Page title and subtitle
+st.title("🧠 Tumor Detection CNN Model")
+st.write("Upload an MRI scan to check for the presence of a tumor.")
 
+# File uploader for the image
+uploaded_file = st.file_uploader("Choose an MRI scan image (JPG format)", type=["jpg", "jpeg", "png"])
+
+# If a file is uploaded
 if uploaded_file is not None:
-    # Display the uploaded image
-    image = Image.open(uploaded_file)
-    image=image.resize((300,200))
-    st.image(image, caption='Uploaded MRI Image', use_column_width=True)
-    
-    # Make prediction when user clicks the button
-    st.write("Processing...")
-    prediction = make_prediction(image, model)
-    
-    # Display the prediction result
-    st.write(f"Prediction: *{prediction}*")
+    # Display uploaded image
+    img = Image.open(uploaded_file)
+    st.image(img, caption="Uploaded MRI scan", use_column_width=True)
+
+    # Add a submit button
+    if st.button("Submit for Classification"):
+        st.write("Analyzing the image...")
+
+        # Make prediction
+        label = make_prediction(img, model)
+
+        # Display the result with enhanced UI
+        if label >= 0.5:
+            st.markdown(
+                "<h2 style='color: red;'>🚨 Tumor Detected! 🚨</h2>", 
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                "<h2 style='color: green;'>✅ No Tumor Detected!</h2>", 
+                unsafe_allow_html=True
+            )
+
+# Footer message
+st.markdown(
+    "<div class='footer'>Built with ❤ using TensorFlow and Streamlit</div>", 
+    unsafe_allow_html=True
+)
